@@ -11,6 +11,7 @@ import { connectDB, db } from "./mongo.js";
 dotenv.config();
 
 const app = express();
+const __dirname = path.resolve();
 
 function uploadBufferToCloudinary(buffer, options = {}) {
   return new Promise((resolve, reject) => {
@@ -31,6 +32,7 @@ if (!MONGODB_URI) {
 }
 
 const client = new MongoClient(MONGODB_URI);
+
 let db;
 
 async function getDb() {
@@ -41,8 +43,22 @@ async function getDb() {
   return db;
 }
 
+app.get("/", (req, res) =>
+  res.send("Server is running. Try /api/health or /api/cards/search?q=name:charizard.")
+);
 
-const __dirname = path.resolve();
+app.get("/api/health", (req, res) => res.json({ ok: true }));
+
+app.get("/api/sale", async (req, res) => {
+  try {
+    const database = await getDb();      // use `database` locally
+    const items = await database.collection("saleListings").find({}).toArray();
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load listings" });
+  }
+});
 
 // ensure uploads folder exists
 const uploadDir = path.join(__dirname, "uploads");
@@ -58,28 +74,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get("/", (req, res) =>
-  res.send("Server is running. Try /api/health or /api/cards/search?q=name:charizard.")
-);
 
-app.get("/api/health", (req, res) => res.json({ ok: true }));
-
-app.get("/api/sale", async (req, res) => {
-  try {
-    const db = await getDb();
-    const items = await db
-      .collection("saleListings")
-      .find({})
-      .sort({ updatedAt: -1 })
-      .limit(200)
-      .toArray();
-
-    res.json(items);
-  } catch (err) {
-    console.error("GET /api/sale failed:", err);
-    res.status(500).json({ error: "Failed to load listings" });
-  }
-});
 
 // Local run only
 // const PORT = process.env.PORT || 4000;
