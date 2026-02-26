@@ -20,7 +20,8 @@ export default function SaleDetail() {
       setLoading(true);
       setErr("");
       try {
-        const res = await fetch(`/api/sale/${id}`);
+        const API = import.meta.env.VITE_API_URL || "";
+        fetch(`${API}/api/sale/${id}`)
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
         if (!cancelled) {
