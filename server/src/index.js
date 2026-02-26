@@ -6,7 +6,6 @@ import path from "path";
 import cloudinary from "./cloudinary.js";
 import { upload } from "./upload.js";
 import fs from "fs";
-import { prisma } from "./prisma.js";
 import { connectDB, db } from "./mongo.js";
 
 dotenv.config();
@@ -135,31 +134,14 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "Server is running" });
 });
 
-// Example DB test route
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const sales = await prisma.saleListing.findMany();
-    res.json(sales);
-  } catch (error) {
-    res.status(500).json({ error: "Database error", details: String(error) });
-  }
-});
+// Local run only
+// const PORT = process.env.PORT || 4000;
 
-// Create a dummy Sale listing (test)
-app.post("/api/sale/test", async (req, res) => {
-  const created = await prisma.saleListing.create({
-    data: {
-      tcgCardId: "base1-4",
-      title: "Charizard (Test)",
-      note: "Near Mint",
-      priceCents: 19999,
-      quantity: 1,
-    },
-  });
-  res.status(201).json(created);
+// Declare listen
+ const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-
-const PORT = process.env.PORT || 4000;
 
 await connectDB();
 
