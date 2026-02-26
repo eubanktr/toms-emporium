@@ -11,13 +11,6 @@ import { connectDB, db } from "./mongo.js";
 dotenv.config();
 
 const app = express();
-const TCG_BASE = "https://api.pokemontcg.io/v2";
-
-function tcgHeaders() {
-  const headers = { "Content-Type": "application/json" };
-  if (process.env.POKEMON_TCG_API_KEY) headers["X-Api-Key"] = process.env.POKEMON_TCG_API_KEY;
-  return headers;
-}
 
 function uploadBufferToCloudinary(buffer, options = {}) {
   return new Promise((resolve, reject) => {
@@ -29,84 +22,25 @@ function uploadBufferToCloudinary(buffer, options = {}) {
   });
 }
 
-app.get("/api/cards/search", async (req, res) => {
- 
-  const q = req.query.q ?? "";
-  const url = new URL("/v2/cards", "https://api.pokemontcg.io");
-  url.searchParams.set("q", q);
-  url.searchParams.set("pageSize", "12");
 
-  // ✅ MOCK TOGGLE (reads from server/.env)
-  const USE_MOCK = process.env.USE_TCG_MOCK === "1";
 
-  // ✅ Step 2 goes RIGHT HERE (before fetch)
-  if (USE_MOCK) {
-    return res.json({
-      data: [
-        {
-          id: "base1-4",
-          name: "Charizard",
-          set: { name: "Base" },
-          number: "4",
-          images: { small: "", large: "" },
-        },
-        {
-          id: "base1-2",
-          name: "Blastoise",
-          set: { name: "Base" },
-          number: "2",
-          images: { small: "", large: "" },
-        },
-        {
-          id: "base1-15",
-          name: "Venusaur",
-          set: { name: "Base" },
-          number: "15",
-          images: { small: "", large: "" },
-        },
-      ],
-      page: 1,
-      pageSize: 12,
-      count: 3,
-      totalCount: 3,
-      mocked: true,
-      query: q,
-    });
-  }
+const MONGODB_URI = process.env.MONGODB_URI;
 
-  try {
-    const r = await fetch(url.toString(), { headers: tcgHeaders() });
+if (!MONGODB_URI) {
+  console.error("Missing MONGODB_URI env var");
+}
 
-    const text = await r.text();
+const client = new MongoClient(MONGODB_URI);
+let db;
 
-    // Upstream is down or returning nothing
-    if (!text) {
-      return res.status(502).json({
-        error: "Upstream Pokémon TCG API returned an empty response",
-        upstreamStatus: r.status,
-        upstreamStatusText: r.statusText,
-      });
-    }
+async function getDb() {
+  if (db) return db;
+  await client.connect();
+  // use an env var if you want, or hardcode your DB name:
+  db = client.db(process.env.MONGODB_DB || "toms_emporium");
+  return db;
+}
 
-    // Try JSON; if not JSON (e.g., HTML error page), return preview
-    try {
-      const data = JSON.parse(text);
-      return res.status(r.status).json(data);
-    } catch {
-      return res.status(502).json({
-        error: "Upstream Pokémon TCG API returned a non-JSON response (likely outage/edge error)",
-        upstreamStatus: r.status,
-        upstreamStatusText: r.statusText,
-        bodyPreview: text.slice(0, 200),
-      });
-    }
-  } catch (e) {
-    return res.status(502).json({
-      error: "Failed to reach Pokémon TCG API (network/outage)",
-      details: String(e),
-    });
-  }
-});
 
 const __dirname = path.resolve();
 
@@ -124,14 +58,27 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get("/", (req, res) => {
-  res.send("Server is running. Try /api/health or /api/cards/search?q=name:charizard");
-});
+app.get("/", (req, res) =>
+  res.send("Server is running. Try /api/health or /api/cards/search?q=name:charizard.")
+);
 
+app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-// Health check route
-app.get("/api/health", (req, res) => {
-  res.json({ status: "Server is running" });
+app.get("/api/sale", async (req, res) => {
+  try {
+    const db = await getDb();
+    const items = await db
+      .collection("saleListings")
+      .find({})
+      .sort({ updatedAt: -1 })
+      .limit(200)
+      .toArray();
+
+    res.json(items);
+  } catch (err) {
+    console.error("GET /api/sale failed:", err);
+    res.status(500).json({ error: "Failed to load listings" });
+  }
 });
 
 // Local run only
