@@ -16,6 +16,7 @@ function getMongoId(x) {
 function parseCents(v) {
   if (v == null) return 0;
   if (typeof v === "number") return Number.isFinite(v) ? Math.round(v) : 0;
+  
   const s = String(v).trim().replace(/,/g, "");
   const n = Number(s);
   return Number.isFinite(n) ? Math.round(n) : 0;
@@ -29,29 +30,6 @@ function getPriceLabel(x) {
   const cents = getPriceCents(x);
   if (!cents) return "Not Priced";
   return `$${(cents / 100).toFixed(2)}`;
-}
-
-function getPriceLabel(x) {
-  // Your DB uses priceCents, but this handles strings safely too
-  const cents =
-    typeof x.priceCents === "number"
-      ? x.priceCents
-      : typeof x.priceCents === "string"
-      ? Number(x.priceCents)
-      : 0;
-
-  if (!cents || Number.isNaN(cents)) return "Not Priced";
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function getPriceCents(x) {
-  const cents =
-    typeof x.priceCents === "number"
-      ? x.priceCents
-      : typeof x.priceCents === "string"
-      ? Number(x.priceCents)
-      : 0;
-  return Number.isNaN(cents) ? 0 : cents;
 }
 
 export default function CardsForSale() {
