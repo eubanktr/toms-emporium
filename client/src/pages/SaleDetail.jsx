@@ -6,6 +6,11 @@ function cleanUrl(u) {
   return String(u).trim().replace(/^"+|"+$/g, "");
 }
 
+function toNumber(v, fallback = 0) {
+  const n = typeof v === "number" ? v : v ? Number(v) : fallback;
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export default function SaleDetail() {
   const { id } = useParams();
   const [item, setItem] = useState(null);
@@ -21,9 +26,10 @@ export default function SaleDetail() {
       setErr("");
       try {
         const API = import.meta.env.VITE_API_URL || "";
-        fetch(`${API}/api/sale/${id}`)
+        const res = await fetch(`${API}/api/sale/${id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+
         if (!cancelled) {
           setItem(data);
           setActiveIdx(0);
@@ -49,10 +55,8 @@ export default function SaleDetail() {
   const activePhoto = photos[activeIdx] || photos[0] || "";
   const card = item?.card || {};
 
-  const priceCents =
-    typeof item?.priceCents === "number" ? item.priceCents : item?.priceCents ? Number(item.priceCents) : 0;
-
-  const priceLabel = priceCents > 0 ? `$${(priceCents / 100).toFixed(2)}` : "—";
+  const priceCents = toNumber(item?.priceCents, 0);
+  const priceLabel = priceCents > 0 ? `$${(priceCents / 100).toFixed(2)}` : "Not Priced";
 
   if (loading) return <div style={{ padding: 24 }}>Loading…</div>;
   if (err) return <div style={{ padding: 24, color: "#b91c1c" }}>{err}</div>;
@@ -81,7 +85,7 @@ export default function SaleDetail() {
             <div style={styles.thumbRow}>
               {photos.map((p, idx) => (
                 <button
-                  key={p}
+                  key={`${p}-${idx}`}
                   type="button"
                   onClick={() => setActiveIdx(idx)}
                   style={{
@@ -101,7 +105,6 @@ export default function SaleDetail() {
         <div style={styles.panel}>
           <div style={styles.titleRow}>
             <h2 style={{ margin: 0 }}>{card.name || "Unknown Card"}</h2>
-            {card.foil ? <span style={styles.badge}>Foil</span> : null}
           </div>
 
           <div style={styles.price}>{priceLabel}</div>
@@ -186,15 +189,6 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-  },
-  badge: {
-    fontSize: 12,
-    fontWeight: 800,
-    padding: "6px 10px",
-    borderRadius: 999,
-    background: "#111827",
-    color: "#fff",
-    whiteSpace: "nowrap",
   },
   price: { fontWeight: 900, fontSize: 22, marginTop: 10 },
   grid: {

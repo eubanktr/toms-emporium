@@ -13,6 +13,23 @@ function getMongoId(x) {
   if (typeof x._id === "object" && x._id.$oid) return x._id.$oid;
   return String(x._id);
 }
+function parseCents(v) {
+  if (v == null) return 0;
+  if (typeof v === "number") return Number.isFinite(v) ? Math.round(v) : 0;
+  const s = String(v).trim().replace(/,/g, "");
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+
+function getPriceCents(x) {
+  return parseCents(x?.priceCents);
+}
+
+function getPriceLabel(x) {
+  const cents = getPriceCents(x);
+  if (!cents) return "Not Priced";
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 function getPriceLabel(x) {
   // Your DB uses priceCents, but this handles strings safely too
@@ -47,7 +64,8 @@ export default function CardsForSale() {
     setLoading(true);
     setErr("");
     try {
-      const res = await fetch("/api/sale");
+      const API = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${API}/api/sale`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       setItems(Array.isArray(data) ? data : []);
